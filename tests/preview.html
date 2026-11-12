@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>OptiClean UI fixture</title><link rel="stylesheet" href="/src/styles.css"></head>
+<body><div id="root"></div>
+<script>
+// Local visual fixture. No native calls or host settings are accessed.
+const titles = ["Game Mode", "Hardware-accelerated GPU scheduling", "Turn off background recording", "Optimizations for windowed games"];
+window.__TAURI_INTERNALS__ = { invoke: async (cmd, args) => {
+  if (cmd === "list_tweaks") return titles.map((title, i) => ({id:String(i),category:"Gaming",title,summary:"Sample setting for visual checks.",details:"Synthetic fixture: does not change Windows.",kind:"Responsiveness",gain:"Hardware dependent.",risk:"Safe",needs:i===1?"Reboot":"",changes:["Fixture only"],enabled:i===0}));
+  if (cmd === "hardware") return JSON.stringify({cpu:"Example Desktop CPU",gpus:["Example Discrete GPU"],board:"Example Mainboard",bios:"1.20",ramGb:32,ramSpeed:5600,portable:false,psu:""});
+  if (cmd === "recovery_status") return JSON.stringify({Description:"OptiClean baseline",SequenceNumber:42,CreationTime:"Example baseline"});
+  if (cmd === "tweak_status" || cmd === "set_tweak") return Boolean(args.on);
+  if (["list_startup","list_apps","list_cleaners","remove_apps"].includes(cmd)) return [];
+  return null;
+}};
+</script>
+<script type="module" src="/src/bootstrap.js"></script></body></html>

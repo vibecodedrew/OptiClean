@@ -1,0 +1,21 @@
+[package]
+name = "opticlean"
+version = "0.2.4"
+edition = "2021"
+license = "MIT"
+description = "An on-demand Windows tuning and recovery utility"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+winreg = "0.56"
+webview2-com = "0.39.1"
+windows-core = "0.62.2"
+windows = { version = "0.62.2", features = ["Win32_Devices_Display", "Win32_Graphics_Gdi", "Win32_Foundation", "Win32_System_Com", "Win32_System_SystemInformation", "Win32_UI_Shell"] }
