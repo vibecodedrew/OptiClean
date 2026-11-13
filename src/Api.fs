@@ -68,6 +68,7 @@ let resetColor () : JS.Promise<unit> =
     emitJsExpr (colorQueue, fun () -> invoke<unit> ("reset_color", null)) "$0.cancel().then($1)"
 let clearLegacyColor () : JS.Promise<unit> =
     emitJsExpr (colorQueue, fun () -> invoke<unit> ("clear_legacy_color", null)) "$0.cancel().then($1)"
+let colorState () = invoke<float[] option> ("color_state", null)
 let recoveryStatus () = invoke<string> ("recovery_status", null)
 let openRecovery () = invoke<unit> ("open_recovery", null)
 
@@ -75,6 +76,11 @@ type Hardware =
     { cpu: string; gpus: string[]; board: string; bios: string
       ramGb: int; ramSpeed: int; portable: bool; psu: string }
 let hardware () = invoke<string> ("hardware", null)
+
+[<Import("getCurrentWindow", "@tauri-apps/api/window")>]
+let private currentWindow () : obj = jsNative
+let minimizeWindow () : unit = currentWindow()?minimize() |> ignore
+let closeWindow () : unit = currentWindow()?close() |> ignore
 
 let listApps () = invoke<AppItem[]> ("list_apps", null)
 let removeApps (pkgs: string[]) = invoke<string[]> ("remove_apps", {| pkgs = pkgs |})

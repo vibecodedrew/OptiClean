@@ -77,6 +77,7 @@ type Msg =
     | ColorOk of float * float
     | ColorRestored
     | ColorFailed of string
+    | ColorLoaded of float[] option
     | Failed of string
 
 let categories =
@@ -142,6 +143,7 @@ let init () =
         call listTweaks () Loaded
         call hardware () Detected
         call recoveryStatus () RecoveryLoaded
+        Cmd.OfPromise.either colorState () ColorLoaded (fun _ -> ColorLoaded None)
     ]
 
 let update msg m =
@@ -168,12 +170,12 @@ let update msg m =
     | RecoveryLoaded text ->
         let detail =
             try
-                if text = "null" then "No OptiClean baseline exists yet. Create it before changing settings."
+                if text = "null" then None
                 else
                     let p: obj = emitJsExpr text "JSON.parse($0)"
-                    sprintf "%s / sequence %s / %s" (string p?Description) (string p?SequenceNumber) (string p?CreationTime)
-            with _ -> "Windows returned an unreadable restore point. Check System Protection."
-        { m with Recovery = detail }, Cmd.none
+                    Some(sprintf "%s / sequence %s / %s" (string p?Description) (string p?SequenceNumber) (string p?CreationTime))
+            with _ -> Some "Windows returned an unreadable restore point. Check System Protection."
+        { m with Recovery = defaultArg detail "No OptiClean baseline exists yet. Create it before changing settings."; RestoreDone = detail.IsSome }, Cmd.none
     | OpenRecovery -> m, call openRecovery () (fun _ -> Success "System Restore opened. Select the OptiClean baseline and review affected programs before continuing.")
     | Detected text ->
         try
@@ -201,7 +203,7 @@ let update msg m =
             log false (name + ": Windows did not keep the change. Another program or a Windows policy may be holding this setting") m, Cmd.none
     | ApplyFailed(id, e) -> { m with Busy = m.Busy.Remove id } |> log false (titleOf m id + ": " + e), readStatus id
     | Nav p ->
-        { m with Page = p },
+        { m with Page = p; Notice = None },
         match p with
         | StartupPage -> Cmd.ofMsg LoadStartup
         | CleanPage -> Cmd.ofMsg LoadCleaners
@@ -260,6 +262,8 @@ let update msg m =
     | ColorOk(s,g) -> { m with Busy = m.Busy.Remove "color"; Color = s; Shadow = g; AppliedColor = Some(s,g); ColorRecovering = false } |> log true "Driver colors updated. You can close OptiClean while playing.", Cmd.none
     | ColorRestored -> { m with Busy = m.Busy.Remove "color"; Color = 1.0; Shadow = 1.0; AppliedColor = None; ColorRecovering = false } |> log true "Previous matrix, native vibrance and saved tone curve restored.", Cmd.none
     | ColorFailed e -> { m with Busy = m.Busy.Remove "color"; ColorRecovering = false } |> log false e, Cmd.none
+    | ColorLoaded(Some v) when v.Length = 2 -> { m with Color = v.[0]; Shadow = v.[1]; AppliedColor = Some(v.[0], v.[1]) }, Cmd.none
+    | ColorLoaded _ -> m, Cmd.none
     | Failed e -> { m with Removing = false } |> log false e, Cmd.none
 
 // ---------- view ----------
@@ -508,17 +512,17 @@ let guidePage m dispatch =
       ] ] ]
 
 let recoveryPage m dispatch =
+    let verifying = m.Busy.Contains "restore"
     [ intro "One shared baseline for OptiClean changes, verified in Windows and reused across app launches. If Windows expires or deletes it, the next change needs a new baseline." []
-      Html.div [ prop.className "feature-panel"; prop.children [
-          Html.span [ prop.className "eyebrow"; prop.text "SYSTEM PROTECTION" ]
-          Html.h2 "A way back, before you tune."
-          Html.p m.Recovery
-          Html.div [ prop.className "preset-bar"; prop.children [
-              Html.button [ prop.className "btn"; prop.disabled (m.Busy.Contains "restore" || m.Pending.IsSome); prop.onClick (fun _ -> dispatch CreateRestore); prop.text (if m.Busy.Contains "restore" then "Verifying..." else "Create / verify baseline") ]
-              Html.button [ prop.className "btn primary"; prop.onClick (fun _ -> dispatch OpenRecovery); prop.text "Open System Restore" ]
-          ] ]
-      ] ]
-      Html.p "In Windows, choose OptiClean baseline (or the legacy OptiClean point), review affected programs and confirm there. The app does not restore or reboot automatically."
+      Html.div [ prop.className "list"; prop.children [
+          Html.div [ prop.className "row"; prop.children [
+              Html.div [ prop.className "row-main"; prop.children [
+                  Html.span [ prop.className "row-title"; prop.text (if m.RestoreDone then "Baseline restore point" else "No baseline") ]
+                  Html.span [ prop.className "row-sub wrap"; prop.text m.Recovery ] ] ]
+              if not m.RestoreDone || verifying then
+                  Html.button [ prop.className "btn"; prop.disabled (verifying || m.Pending.IsSome); prop.onClick (fun _ -> dispatch CreateRestore); prop.text (if verifying then "Verifying..." else "Create baseline") ]
+              Html.button [ prop.className "btn primary"; prop.onClick (fun _ -> dispatch OpenRecovery); prop.text "Open System Restore" ] ] ] ] ]
+      Html.p [ prop.className "hint"; prop.text "In Windows, choose OptiClean baseline (or the legacy OptiClean point), review affected programs and confirm there. The app does not restore or reboot automatically." ]
       Html.p [ prop.className "hint"; prop.text "System Restore protects system settings and installed components. It does not back up personal files, recover cleaned files, or undo firmware/GPU clocks. Per-tweak Undo uses documented defaults, which may differ from your custom settings. Windows' normal restore-point frequency policy is respected." ] ]
 
 let tab m dispatch (page: Page) (label: string) =
@@ -547,6 +551,15 @@ let view m dispatch =
     Html.div [
         prop.className "app"
         prop.children [
+            Html.div [
+                prop.className "titlebar"
+                prop.custom ("data-tauri-drag-region", "")
+                prop.children [
+                    Html.span [ prop.className "wordmark"; prop.text "OptiClean" ]
+                    Html.button [ prop.className "win min"; prop.ariaLabel "Minimize"; prop.onClick (fun _ -> minimizeWindow ()) ]
+                    Html.button [ prop.className "win close"; prop.ariaLabel "Close"; prop.onClick (fun _ -> closeWindow ()) ]
+                ]
+            ]
             Html.header [
                 prop.className "top"
                 prop.children [

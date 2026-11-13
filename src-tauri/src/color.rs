@@ -506,13 +506,33 @@ struct Baseline {
     #[serde(default)]
     gamma: Option<Vec<Vec<u16>>>,
 }
-fn baseline_path(display: u32) -> Result<std::path::PathBuf, String> {
+fn data_dir() -> Result<std::path::PathBuf, String> {
     let dir = std::path::PathBuf::from(
         std::env::var_os("LOCALAPPDATA").ok_or("Local app data unavailable")?,
     )
     .join("OptiClean");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.join(format!("color-baseline-{display}.json")))
+    Ok(dir)
+}
+fn baseline_path(display: u32) -> Result<std::path::PathBuf, String> {
+    Ok(data_dir()?.join(format!("color-baseline-{display}.json")))
+}
+/// The slider values last applied, so a reopened app can show and re-apply them.
+pub fn saved() -> Option<(f32, f32)> {
+    let bytes = std::fs::read(data_dir().ok()?.join("color-state.json")).ok()?;
+    let (saturation, shadow) = serde_json::from_slice(&bytes).ok()?;
+    validate(saturation, shadow).ok()?;
+    Some((saturation, shadow))
+}
+/// Best effort: a failed write only means the sliders start at their defaults next launch.
+fn remember(values: Option<(f32, f32)>) {
+    let Ok(path) = data_dir().map(|d| d.join("color-state.json")) else {
+        return;
+    };
+    let _ = match values.and_then(|v| serde_json::to_vec(&v).ok()) {
+        Some(data) => std::fs::write(path, data),
+        None => std::fs::remove_file(path),
+    };
 }
 fn stored_ramp(gamma: &[Vec<u16>]) -> Result<Ramp, String> {
     if gamma.len() != 3 || gamma.iter().any(|c| c.len() != 256) {
@@ -618,7 +638,9 @@ pub fn apply(saturation: f32, shadow: f32) -> Result<(), String> {
         handle,
         gamma: &gamma,
     };
-    apply_transaction(&mut output, &current, &target, &lift)
+    apply_transaction(&mut output, &current, &target, &lift)?;
+    remember(Some((saturation, shadow)));
+    Ok(())
 }
 pub fn reset() -> Result<(), String> {
     let _guard = LOCK.lock().map_err(|e| e.to_string())?;
@@ -654,6 +676,7 @@ pub fn reset() -> Result<(), String> {
             Err(r) => Err(format!("{e}; recovery also failed: {r}")),
         };
     }
+    remember(None);
     std::fs::remove_file(baseline_path(display)?).map_err(|e| e.to_string())
 }
 
@@ -678,7 +701,9 @@ pub fn clear_legacy() -> Result<(), String> {
         handle,
         gamma: &gamma,
     };
-    apply_transaction(&mut output, &current, &neutral_csc(), &linear_ramp())
+    apply_transaction(&mut output, &current, &neutral_csc(), &linear_ramp())?;
+    remember(None);
+    Ok(())
 }
 
 #[cfg(test)]

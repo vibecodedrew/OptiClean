@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.5 - 2026-11-13
+
+- Custom title bar with minimize and close; the Windows frame is gone. Fixed 1380x880 window, centered, no resize or maximize.
+- Status messages clear when switching tabs instead of following you to the next page.
+- Flatter interface with no blurred glows and underline tabs, so repaints cost less.
+- Recovery page is a single row: baseline status, Open System Restore, and a Create baseline button only while Windows has no OptiClean baseline.
+- Color studio reads the saved saturation and shadow values on startup, so sliders match what the driver is running after a relaunch.
+- Fix a plain `cargo build --release` producing a binary that loads the Vite dev URL and shows no window. The `custom-protocol` feature is now a default feature, so release builds always embed the frontend.
+
 ## 0.2.4 - 2026-11-12
 
 - Remove the "Turn off Widgets" switch. Windows' UCPD driver denies that policy key to every program, administrators included, so it could only fail with "Access is denied". Widgets stays removable on the Remove apps page.

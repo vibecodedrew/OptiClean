@@ -53,7 +53,7 @@ npm.cmd run tauri -- build --no-bundle
 
 The executable is `src-tauri/target/release/opticlean.exe`. Release builds request administrator rights to manage machine settings. The source release does not include binaries, PDBs or machine caches. For development, run `npm.cmd run tauri -- dev`; machine settings still require elevation. In PowerShell, `npm.cmd` avoids execution-policy restrictions on the npm PowerShell shim.
 
-After building the frontend, the equivalent direct production build is `cargo build --release --features custom-protocol --manifest-path src-tauri/Cargo.toml`. The production protocol embeds the frontend; a plain Cargo build without that feature is for development and can require the Vite server.
+After building the frontend, the equivalent direct production build is `cargo build --release --manifest-path src-tauri/Cargo.toml`. The `custom-protocol` feature is on by default and embeds the frontend; `tauri dev` turns it off to use the Vite server.
 
 To preview the UI without accessing Windows settings, run `npm.cmd run dev`, then open `http://localhost:5173/tests/preview.html`. This synthetic fixture uses example hardware and intercepts native commands; it is not included in the production bundle. `npm test` expects the Fable output produced by `npm run build`.
 

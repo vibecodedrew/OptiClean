@@ -109,6 +109,11 @@ fn set_color(saturation: f32, shadow: f32) -> Result<(), String> {
 }
 
 #[tauri::command(async)]
+fn color_state() -> Option<(f32, f32)> {
+    color::saved()
+}
+
+#[tauri::command(async)]
 fn reset_color() -> Result<(), String> {
     color::reset()
 }
@@ -169,6 +174,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             app_ready,
             set_color,
+            color_state,
             hardware,
             reset_color,
             clear_legacy_color,
@@ -188,3 +194,4 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running OptiClean");
 }
+

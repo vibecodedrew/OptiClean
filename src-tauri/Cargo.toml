@@ -1,11 +1,12 @@
 [package]
 name = "opticlean"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 license = "MIT"
 description = "An on-demand Windows tuning and recovery utility"
 
 [features]
+default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
 [build-dependencies]
